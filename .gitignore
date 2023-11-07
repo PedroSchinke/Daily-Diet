@@ -1,2 +1,4 @@
 node_modules
 tmp/app.db
+.env
+README.md
