@@ -2,21 +2,34 @@ import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { knex } from '../database'
 import { randomUUID } from 'crypto'
+import { PasswordCrypto } from '../services/passwordCrypto'
 
 export async function usersRoutes(app: FastifyInstance) {
-  app.get('/:email', async (request) => {
+  app.post('/sign-in', async (request, reply) => {
     const getUserParamsSchema = z.object({
       email: z.string(),
+      password: z.string(),
     })
 
-    const { email } = getUserParamsSchema.parse(request.params)
+    const { email, password } = getUserParamsSchema.parse(request.body)
 
     const user = await knex('users').where('email', email).first()
 
-    return { user }
+    if (!user) return new Error('Email ou senha incorretos')
+
+    const passwordMatch = await PasswordCrypto.verifyPassword(
+      password,
+      user.password,
+    )
+
+    if (!passwordMatch) {
+      return new Error('Email ou senha incorretos')
+    } else {
+      return reply.status(200).send('Login efetuado com sucesso!')
+    }
   })
 
-  app.post('/', async (request, reply) => {
+  app.post('/sign-up', async (request, reply) => {
     const createUserBodySchema = z.object({
       name: z.string(),
       email: z.string(),
@@ -25,11 +38,13 @@ export async function usersRoutes(app: FastifyInstance) {
 
     const { name, email, password } = createUserBodySchema.parse(request.body)
 
+    const hashedPassword = await PasswordCrypto.hashPassword(password)
+
     await knex('users').insert({
       id: randomUUID(),
       name,
       email,
-      password,
+      password: hashedPassword,
     })
 
     return reply.status(201).send()
