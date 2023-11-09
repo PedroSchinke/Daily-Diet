@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { knex } from '../database'
 import { randomUUID } from 'crypto'
 import { PasswordCrypto } from '../services/passwordCrypto'
+import { JWTService } from '../services/JWT'
 
 export async function usersRoutes(app: FastifyInstance) {
   app.post('/sign-in', async (request, reply) => {
@@ -25,7 +26,12 @@ export async function usersRoutes(app: FastifyInstance) {
     if (!passwordMatch) {
       return new Error('Email ou senha incorretos')
     } else {
-      return reply.status(200).send('Login efetuado com sucesso!')
+      const accessToken = JWTService.sign({ uid: user.id })
+
+      if (accessToken === 'JWT_SECRET_NOT_FOUND') {
+        return reply.status(500).send('Erro interno do servidor')
+      }
+      return reply.status(200).send({ accessToken })
     }
   })
 
@@ -47,6 +53,6 @@ export async function usersRoutes(app: FastifyInstance) {
       password: hashedPassword,
     })
 
-    return reply.status(201).send()
+    return reply.status(201).send('Usuário criado com sucesso!')
   })
 }
