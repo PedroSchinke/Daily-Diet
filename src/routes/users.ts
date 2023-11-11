@@ -31,7 +31,9 @@ export async function usersRoutes(app: FastifyInstance) {
       if (accessToken === 'JWT_SECRET_NOT_FOUND') {
         return reply.status(500).send('Erro interno do servidor')
       }
-      return reply.status(200).send({ accessToken })
+      return reply
+        .status(200)
+        .send({ message: 'Login efetuado com sucesso!', accessToken })
     }
   })
 
