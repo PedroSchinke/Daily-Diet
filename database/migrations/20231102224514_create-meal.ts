@@ -5,6 +5,8 @@ export async function up(knex: Knex): Promise<void> {
     table.uuid('id').primary().index()
     table.text('title').notNullable()
     table.text('description').notNullable()
+    table.decimal('hourOfMeal').notNullable()
+    table.decimal('minuteOfMeal').notNullable()
     table.enum('onDiet', ['Sim', 'Não']).notNullable()
   })
 }

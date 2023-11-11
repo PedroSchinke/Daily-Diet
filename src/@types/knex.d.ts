@@ -7,6 +7,8 @@ declare module 'knex/types/tables' {
       id: string
       title: string
       description: string
+      hourOfMeal: number
+      minuteOfMeal: number
       onDiet: 'Sim' | 'Não'
       session_id?: string
     }
