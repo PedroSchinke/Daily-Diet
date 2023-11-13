@@ -31,11 +31,11 @@ export async function mealsRoutes(app: FastifyInstance) {
 
     const onDietMealsCount = onDietMeals.length
 
-    const notOnDietMeals = await knex('meals').where('onDiet', 'Não')
+    const offDietMeals = await knex('meals').where('onDiet', 'Não')
 
-    const notOnDietMealsCount = notOnDietMeals.length
+    const offDietMealsCount = offDietMeals.length
 
-    return { mealsCount, onDietMealsCount, notOnDietMealsCount }
+    return { mealsCount, onDietMealsCount, offDietMealsCount }
   })
 
   app.post('/', async (request, reply) => {
