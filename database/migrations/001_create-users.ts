@@ -5,7 +5,7 @@ export async function up(knex: Knex): Promise<void> {
     table.uuid('id').primary().index()
     table.text('name').notNullable()
     table.text('email').index().unique().notNullable()
-    table.text('password').notNullable().checkLength('>', 6)
+    table.text('password').notNullable().checkLength('>', 7)
   })
 }
 
