@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken'
 import { env } from '../env'
 
 interface UserPayload {
-  userId: string
+  uid: string
 }
 
 interface CustomRequest extends FastifyRequest {
@@ -15,7 +15,7 @@ interface CustomRequest extends FastifyRequest {
 
 export async function mealsRoutes(app: FastifyInstance) {
   app.addHook(
-    'onRequest',
+    'preHandler',
     async (request: CustomRequest, reply: FastifyReply) => {
       const authHeader = request.headers.authorization
       const token = authHeader && authHeader.split(' ')[1]
@@ -39,52 +39,72 @@ export async function mealsRoutes(app: FastifyInstance) {
     },
   )
 
-  app.get('/', async () => {
-    const meals = await knex('meals').select()
+  app.get('/', async (request: CustomRequest) => {
+    const userId = request.user?.uid
+
+    const meals = await knex('meals').select().where('userId', userId)
 
     return { meals }
   })
 
-  app.get('/:id', async (request) => {
+  app.get('/:id', async (request: CustomRequest) => {
     const getMealParamsSchema = z.object({
       id: z.string().uuid(),
     })
 
+    const userId = request.user?.uid
+
     const { id } = getMealParamsSchema.parse(request.params)
 
-    const meal = await knex('meals').where('id', id).first()
+    const meal = await knex('meals')
+      .where('id', id)
+      .andWhere('userId', userId)
+      .first()
 
     return { meal }
   })
 
-  app.get('/summary', async () => {
-    const meals = await knex('meals').select()
+  app.get('/summary', async (request: CustomRequest) => {
+    const userId = request.user?.uid
+
+    const meals = await knex('meals').where('userId', userId).select()
 
     const mealsCount = meals.length
 
-    const onDietMeals = await knex('meals').where('onDiet', 'Sim')
+    const onDietMeals = await knex('meals')
+      .where('onDiet', 'Sim')
+      .andWhere('userId', userId)
 
     const onDietMealsCount = onDietMeals.length
 
-    const offDietMeals = await knex('meals').where('onDiet', 'Não')
+    const offDietMeals = await knex('meals')
+      .where('onDiet', 'Não')
+      .andWhere('userId', userId)
 
     const offDietMealsCount = offDietMeals.length
 
-    return { mealsCount, onDietMealsCount, offDietMealsCount }
+    const summary = {
+      summary: {
+        mealsCount,
+        onDietMealsCount,
+        offDietMealsCount,
+      },
+    }
+
+    return summary
   })
 
   app.post('/', async (request: CustomRequest, reply) => {
     const createMealBodySchema = z.object({
       title: z.string(),
       description: z.string(),
+      dateOfMeal: z.string(),
       hourOfMeal: z.number().min(0).max(23),
       minuteOfMeal: z.number().min(0).max(59),
       onDiet: z.enum(['Sim', 'Não']),
     })
 
-    const userId = request.user?.userId
-
-    console.log(userId)
+    const userId = request.user?.uid
 
     if (!userId) {
       return reply.status(403).send({
@@ -92,13 +112,14 @@ export async function mealsRoutes(app: FastifyInstance) {
       })
     }
 
-    const { title, description, hourOfMeal, minuteOfMeal, onDiet } =
+    const { title, description, dateOfMeal, hourOfMeal, minuteOfMeal, onDiet } =
       createMealBodySchema.parse(request.body)
 
     await knex('meals').insert({
       id: randomUUID(),
       title,
       description,
+      dateOfMeal,
       hourOfMeal,
       minuteOfMeal,
       onDiet,
@@ -110,10 +131,11 @@ export async function mealsRoutes(app: FastifyInstance) {
       .send({ message: 'Refeição registrada com sucesso!' })
   })
 
-  app.put('/:id', async (request, reply) => {
+  app.put('/:id', async (request: CustomRequest, reply) => {
     const updateMealBodySchema = z.object({
       title: z.string(),
       description: z.string(),
+      dateOfMeal: z.string(),
       hourOfMeal: z.number().min(0).max(23),
       minuteOfMeal: z.number().min(0).max(59),
       onDiet: z.enum(['Sim', 'Não']),
@@ -123,32 +145,51 @@ export async function mealsRoutes(app: FastifyInstance) {
       id: z.string(),
     })
 
-    const { title, description, hourOfMeal, minuteOfMeal, onDiet } =
+    const { title, description, dateOfMeal, hourOfMeal, minuteOfMeal, onDiet } =
       updateMealBodySchema.parse(request.body)
 
     const { id } = updateMealParamsSchema.parse(request.params)
 
-    await knex('meals')
+    const userId = request.user?.uid
+
+    const meal = await knex('meals')
       .update({
         title,
         description,
+        dateOfMeal,
         hourOfMeal,
         minuteOfMeal,
         onDiet,
       })
       .where('id', id)
+      .andWhere('userId', userId)
+
+    if (!meal)
+      return reply.status(404).send({
+        message: 'Refeição não encontrada',
+      })
 
     return reply.status(204).send({ message: 'Refeição editada com sucesso!' })
   })
 
-  app.delete('/:id', async (request, reply) => {
+  app.delete('/:id', async (request: CustomRequest, reply) => {
     const deleteMealParamsSchema = z.object({
       id: z.string(),
     })
 
     const { id } = deleteMealParamsSchema.parse(request.params)
 
-    await knex('meals').delete().where('id', id)
+    const userId = request.user?.uid
+
+    const deletedMeal = await knex('meals')
+      .delete()
+      .where('id', id)
+      .andWhere('userId', userId)
+
+    if (!deletedMeal)
+      return reply.status(404).send({
+        message: 'Refeição não encontrada',
+      })
 
     return reply.status(204).send({ message: 'Refeição deletada com sucesso!' })
   })
