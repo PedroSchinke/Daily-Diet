@@ -41,7 +41,7 @@ export async function usersRoutes(app: FastifyInstance) {
     const createUserBodySchema = z.object({
       name: z.string(),
       email: z.string(),
-      password: z.string(),
+      password: z.string().min(8),
     })
 
     const { name, email, password } = createUserBodySchema.parse(request.body)
